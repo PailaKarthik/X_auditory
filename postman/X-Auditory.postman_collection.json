@@ -1,0 +1,203 @@
+{
+  "info": {
+    "name": "X Auditory Assistance API",
+    "description": "Event keys are the slugified AudioSet label the model emits (e.g. 'Baby cry, infant cry' -> baby_cry_infant_cry), so a prediction always matches a mode toggle exactly.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:4000/api/v1"},
+    {"key": "modelUrl", "value": "http://localhost:8020"},
+    {"key": "modeId", "value": ""},
+    {"key": "detectionId", "value": ""}
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {"name": "API health", "request": {"method": "GET", "url": "{{baseUrl}}/health"}},
+        {
+          "name": "Deep health (API + Mongo + model service + catalog)",
+          "request": {"method": "GET", "url": "{{baseUrl}}/health/full"}
+        },
+        {"name": "Model service health", "request": {"method": "GET", "url": "{{modelUrl}}/health"}},
+        {
+          "name": "Model service label -> eventKey contract",
+          "request": {"method": "GET", "url": "{{modelUrl}}/catalog"}
+        }
+      ]
+    },
+    {
+      "name": "Modes",
+      "item": [
+        {
+          "name": "List modes + event catalog",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const modes = pm.response.json().data.modes;",
+                  "const active = modes.find(m => m.active) || modes[0];",
+                  "if (active) pm.collectionVariables.set('modeId', active._id);"
+                ]
+              }
+            }
+          ],
+          "request": {"method": "GET", "url": "{{baseUrl}}/modes"}
+        },
+        {"name": "Event catalog only", "request": {"method": "GET", "url": "{{baseUrl}}/modes/catalog"}},
+        {"name": "Get one mode", "request": {"method": "GET", "url": "{{baseUrl}}/modes/{{modeId}}"}},
+        {
+          "name": "Set active mode",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"modeId\": \"{{modeId}}\"\n}"},
+            "url": "{{baseUrl}}/modes/active"
+          }
+        },
+        {
+          "name": "Toggle an event on/off",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"attention\": \"high\",\n  \"phoneNotification\": true,\n  \"xLight\": true,\n  \"vibration\": true\n}"
+            },
+            "url": "{{baseUrl}}/modes/{{modeId}}/events/baby_cry_infant_cry"
+          }
+        },
+        {
+          "name": "Create custom profile",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bus Journey\",\n  \"description\": \"Commute profile\",\n  \"events\": [\n    { \"eventKey\": \"vehicle\", \"enabled\": true, \"attention\": \"high\" },\n    { \"eventKey\": \"vehicle_horn_car_horn_honking\", \"enabled\": true, \"attention\": \"high\" },\n    { \"eventKey\": \"siren\", \"enabled\": true, \"attention\": \"critical\" },\n    { \"eventKey\": \"speech\", \"enabled\": true, \"attention\": \"medium\" }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/modes/custom"
+          }
+        },
+        {
+          "name": "Rename custom profile",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"name\": \"Bus Journey v2\"\n}"},
+            "url": "{{baseUrl}}/modes/{{modeId}}"
+          }
+        },
+        {
+          "name": "Delete custom profile",
+          "request": {"method": "DELETE", "url": "{{baseUrl}}/modes/{{modeId}}"}
+        }
+      ]
+    },
+    {
+      "name": "Detections",
+      "item": [
+        {
+          "name": "Upload audio -> predict -> match active mode",
+          "description": "Response carries per-stage `timings` and a `trace` array. When nothing is raised, `stage` and `reason` say exactly why: no_active_mode, unmatched_event, event_not_in_mode, event_not_enabled, or low_confidence.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.success && body.data && body.data.id) pm.collectionVariables.set('detectionId', body.data.id);",
+                  "console.log('stage:', body.stage, 'reason:', body.reason || '-');",
+                  "console.log('timings:', JSON.stringify(body.timings));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "audio", "type": "file", "src": ""},
+                {"key": "direction", "type": "text", "value": "7_o_clock"}
+              ]
+            },
+            "url": "{{baseUrl}}/detections/audio"
+          }
+        },
+        {
+          "name": "Simulate a detection (no audio file)",
+          "description": "Replays the post-model half of the pipeline so mode/toggle/notification wiring can be tested without a clip.",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventKey\": \"baby_cry_infant_cry\",\n  \"direction\": \"7_o_clock\",\n  \"confidence\": 0.91\n}"
+            },
+            "url": "{{baseUrl}}/detections/simulate"
+          }
+        },
+        {"name": "List detection history", "request": {"method": "GET", "url": "{{baseUrl}}/detections"}},
+        {
+          "name": "List detections since a timestamp (delta poll)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/detections?since=2026-01-01T00:00:00.000Z",
+              "host": ["{{baseUrl}}"],
+              "path": ["detections"],
+              "query": [{"key": "since", "value": "2026-01-01T00:00:00.000Z"}]
+            }
+          }
+        },
+        {"name": "Get one detection", "request": {"method": "GET", "url": "{{baseUrl}}/detections/{{detectionId}}"}},
+        {"name": "Valid directions", "request": {"method": "GET", "url": "{{baseUrl}}/detections/meta/directions"}},
+        {
+          "name": "Model service predict (direct)",
+          "request": {
+            "method": "POST",
+            "body": {"mode": "formdata", "formdata": [{"key": "file", "type": "file", "src": ""}]},
+            "url": "{{modelUrl}}/predict"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Speech to text",
+      "item": [
+        {"name": "List STT history", "request": {"method": "GET", "url": "{{baseUrl}}/stt"}},
+        {
+          "name": "Save STT transcript",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transcript\": \"Your train will arrive at platform three.\",\n  \"direction\": \"7_o_clock\",\n  \"confidence\": 0.94,\n  \"mode\": \"Conversation\"\n}"
+            },
+            "url": "{{baseUrl}}/stt"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Device",
+      "item": [
+        {"name": "Get device state", "request": {"method": "GET", "url": "{{baseUrl}}/device"}},
+        {
+          "name": "Update device state",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {"mode": "raw", "raw": "{\n  \"battery\": 64,\n  \"charging\": true,\n  \"connected\": true\n}"},
+            "url": "{{baseUrl}}/device"
+          }
+        },
+        {"name": "Analytics", "request": {"method": "GET", "url": "{{baseUrl}}/device/analytics"}}
+      ]
+    }
+  ]
+}

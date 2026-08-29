@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "X Auditory Assistance",
+    "slug": "x-auditory-assistance",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "x-auditory",
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-font",
+      "react-native-edge-to-edge",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow X Auditory Assistance to use the microphone for live captions.",
+          "speechRecognitionPermission": "Allow X Auditory Assistance to transcribe speech into live captions.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.as"
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "android": {
+      "package": "com.example.xauditory",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.example.xauditory"
+    }
+  }
+}
