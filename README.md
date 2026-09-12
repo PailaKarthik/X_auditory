@@ -1,5 +1,8 @@
 # X — Auditory Assistance App
 
+[ppt](https://docs.google.com/presentation/d/15ykP-vZO97ayA3Wj1sLC4345U7iVbVa5/edit?usp=sharing&ouid=115615109419150803508&rtpof=true&sd=true)
+[figma Design](https://www.figma.com/make/o2aCjW61ecRPD8ve4q4Nrc/Complete-current-task?fullscreen=1&t=pbKXsHf535th7ZIw-1&code-node-id=0-6)
+
 A three-tier prototype of **X**, an auditory assistance system for deaf and
 hard-of-hearing users. X listens to the environment, recognises the sounds that
 matter in the user's current context, and surfaces them as visual alerts with a
